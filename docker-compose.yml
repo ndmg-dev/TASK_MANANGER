@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  # ─── BACKEND (Flask + Gunicorn) ───────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ndmg-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-development}
+      - FLASK_DEBUG=1
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  # ─── FRONTEND (Vite dev server) ───────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ndmg-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - VITE_SUPABASE_URL=${SUPABASE_URL}
+      - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - VITE_API_URL=http://localhost:5000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
