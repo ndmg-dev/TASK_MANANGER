@@ -1,4 +1,4 @@
-# NDMG Task Manager
+# NDM Task Manager
 
 A professional enterprise task management platform combining visual management methodologies with artificial intelligence. Designed to accelerate development lifecycles through automated code reviews, streamlined pull request generation, and granular access controls.
 
