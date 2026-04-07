@@ -7,11 +7,22 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ndmg-backend-prod
-    # As variáveis sensíveis como GROQ_API_KEY, GITHUB_TOKEN, etc.,
     # O Coolify vai gerenciar na aba "Environment Variables" dele.
+    # Repassamos as variáveis automaticamente:
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=0
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - GITHUB_REPO_OWNER=${GITHUB_REPO_OWNER}
+      - GITHUB_REPO_NAME=${GITHUB_REPO_NAME}
+      - GITHUB_BASE_BRANCH=${GITHUB_BASE_BRANCH}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # Variáveis nativas injetadas do Coolify (para sumir o erro de validação):
+      - SERVICE_FQDN_FRONTEND=${SERVICE_FQDN_FRONTEND}
+      - SERVICE_URL_FRONTEND=${SERVICE_URL_FRONTEND}
     restart: unless-stopped
 
   # ─── FRONTEND (React + Vite + Nginx) ──────────────
