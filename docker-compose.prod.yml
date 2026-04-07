@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  # ─── BACKEND (Flask + Gunicorn) ───────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ndmg-backend-prod
+    # As variáveis sensíveis como GROQ_API_KEY, GITHUB_TOKEN, etc.,
+    # O Coolify vai gerenciar na aba "Environment Variables" dele.
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    restart: unless-stopped
+
+  # ─── FRONTEND (React + Vite + Nginx) ──────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # Repassa as vars do Docker-Compose (geradas no painel do Coolify)
+        # Para dentro do ambiente de build do React
+        VITE_SUPABASE_URL: ${SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+        VITE_API_URL: /api
+    container_name: ndmg-frontend-prod
+    depends_on:
+      - backend
+    restart: unless-stopped
