@@ -21,6 +21,12 @@ if (supabaseUrl && supabaseAnonKey) {
     from: () => ({
       select: () => ({ data: [], error: null }),
     }),
+    channel: () => ({
+      on: () => ({
+        subscribe: () => ({})
+      }),
+    }),
+    removeChannel: () => ({}),
   }
 }
 
