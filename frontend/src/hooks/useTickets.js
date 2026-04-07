@@ -9,16 +9,34 @@ export function useTickets() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true)
+      if (!isSilent) setLoading(true)
       const { data } = await ticketsApi.getAll()
       setTickets(data)
       setError(null)
     } catch (err) {
-      setError(err.message)
+      if (!isSilent) setError(err.message)
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
+    }
+  }, [])
+
+  const fetchSingleTicket = useCallback(async (id) => {
+    try {
+      const { data } = await ticketsApi.getById(id)
+      setTickets(prev => {
+        const index = prev.findIndex(t => t.id === id)
+        if (index !== -1) {
+          // Update existing
+          return prev.map(t => t.id === id ? data : t)
+        } else {
+          // Add new
+          return [...prev, data]
+        }
+      })
+    } catch (err) {
+      console.error('Error fetching single ticket:', err)
     }
   }, [])
 
@@ -26,20 +44,23 @@ export function useTickets() {
     fetchTickets()
 
     // ─── Realtime Subscription ──────────────────────────
-    // Subscreve a mudanças na tabela de tickets para todos os usuários
     const channel = supabase
       .channel('schema-db-changes')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
+          event: '*', 
           schema: 'public',
           table: 'tickets'
         },
-        () => {
-          // Quando algo muda no banco, recarregamos a lista
-          // Isso garante que todos vejam o board atualizado "ao vivo"
-          fetchTickets()
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            // Quando algo muda, buscamos APENAS esse ticket com seus joins (assignee, etc)
+            // Isso evita o flicker de recarregar a lista inteira
+            fetchSingleTicket(payload.new.id)
+          } else if (payload.eventType === 'DELETE') {
+            setTickets(prev => prev.filter(t => t.id === payload.old.id))
+          }
         }
       )
       .subscribe()
@@ -47,7 +68,7 @@ export function useTickets() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [fetchTickets])
+  }, [fetchTickets, fetchSingleTicket])
 
   const getTicketsByColumn = useCallback(() => {
     const grouped = {}

@@ -145,6 +145,20 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
             {!ticket.assignee && !ticket.ticket_participants?.length ? 'Sem responsável' : ''}
           </span>
           
+          {/* Checklist Indicator */}
+          {ticket.ticket_checklists?.length > 0 && (
+            <span 
+              style={{ 
+                fontSize: 10, padding: '2px 6px', background: 'rgba(34, 197, 94, 0.1)', 
+                color: 'var(--color-success)', borderRadius: 12, marginLeft: 4, 
+                display: 'flex', alignItems: 'center', gap: 4, border: '1px solid rgba(34, 197, 94, 0.2)' 
+              }}
+              title="Progresso do Checklist"
+            >
+              ☑️ {ticket.ticket_checklists.filter(i => i.completed).length}/{ticket.ticket_checklists.length}
+            </span>
+          )}
+
           {/* Attachments Indicator */}
           {ticket.ticket_attachments?.length > 0 && (
             <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--color-bg-hover)', borderRadius: 12, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>

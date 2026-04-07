@@ -11,7 +11,7 @@ class TicketService:
     def get_all(status=None, assignee_id=None):
         sb = get_supabase()
         query = sb.table("tickets").select(
-            "*, assignee:users!assignee_id(id, full_name, avatar_url), creator:users!created_by(id, full_name), ticket_participants(users(id, full_name, avatar_url, email)), ticket_attachments(*)"
+            "*, assignee:users!assignee_id(id, full_name, avatar_url), creator:users!created_by(id, full_name), ticket_participants(users(id, full_name, avatar_url, email)), ticket_attachments(*), ticket_checklists(*)"
         ).order("position")
 
         if status:
@@ -26,7 +26,7 @@ class TicketService:
     def get_by_id(ticket_id):
         sb = get_supabase()
         result = sb.table("tickets").select(
-            "*, assignee:users!assignee_id(id, full_name, avatar_url, email), creator:users!created_by(id, full_name), ticket_participants(users(id, full_name, avatar_url, email)), ticket_attachments(*)"
+            "*, assignee:users!assignee_id(id, full_name, avatar_url, email), creator:users!created_by(id, full_name), ticket_participants(users(id, full_name, avatar_url, email)), ticket_attachments(*), ticket_checklists(*)"
         ).eq("id", ticket_id).single().execute()
         return result.data
 
@@ -109,4 +109,41 @@ class TicketService:
         sb = get_supabase()
         for idx, tid in enumerate(ticket_ids):
             sb.table("tickets").update({"position": idx}).eq("id", tid).execute()
+        return True
+
+    # ─── Checklist Management ───────────────────────────────
+
+    @staticmethod
+    def add_checklist_item(ticket_id, text):
+        sb = get_supabase()
+        # Get next position
+        existing = sb.table("ticket_checklists").select("position").eq("ticket_id", ticket_id).order("position", desc=True).limit(1).execute()
+        next_pos = (existing.data[0]["position"] + 1) if existing.data else 0
+        
+        item = {
+            "ticket_id": ticket_id,
+            "text": text,
+            "completed": False,
+            "position": next_pos
+        }
+        result = sb.table("ticket_checklists").insert(item).execute()
+        return result.data[0] if result.data else None
+
+    @staticmethod
+    def update_checklist_item(item_id, data):
+        sb = get_supabase()
+        update_fields = {}
+        for field in ["text", "completed", "position"]:
+            if field in data:
+                update_fields[field] = data[field]
+        
+        if update_fields:
+            result = sb.table("ticket_checklists").update(update_fields).eq("id", item_id).execute()
+            return result.data[0] if result.data else None
+        return None
+
+    @staticmethod
+    def delete_checklist_item(item_id):
+        sb = get_supabase()
+        sb.table("ticket_checklists").delete().eq("id", item_id).execute()
         return True

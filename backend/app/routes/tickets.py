@@ -173,3 +173,40 @@ def reorder_tickets():
 
     TicketService.reorder_column(status, ticket_ids)
     return jsonify({"message": "Ordem atualizada"})
+
+
+# ─── Checklist Routes ──────────────────────────────────────
+
+@tickets_bp.route("/tickets/<ticket_id>/checklists", methods=["POST"])
+@require_auth
+def add_checklist_item(ticket_id):
+    """Add a checklist item to a ticket."""
+    data = request.get_json()
+    if not data or not data.get("text"):
+        return jsonify({"error": "Campo 'text' é obrigatório"}), 400
+
+    item = TicketService.add_checklist_item(ticket_id, data["text"])
+    if not item:
+        return jsonify({"error": "Falha ao criar item de checklist"}), 500
+
+    return jsonify(item), 201
+
+
+@tickets_bp.route("/tickets/checklists/<item_id>", methods=["PUT"])
+@require_auth
+def update_checklist_item(item_id):
+    """Update a checklist item (toggle, rename, reorder)."""
+    data = request.get_json()
+    item = TicketService.update_checklist_item(item_id, data)
+    if not item:
+        return jsonify({"error": "Item não encontrado ou falha na atualização"}), 404
+
+    return jsonify(item)
+
+
+@tickets_bp.route("/tickets/checklists/<item_id>", methods=["DELETE"])
+@require_auth
+def delete_checklist_item(item_id):
+    """Delete a checklist item."""
+    TicketService.delete_checklist_item(item_id)
+    return jsonify({"message": "Item removido"}), 200

@@ -76,4 +76,11 @@ export const attachmentsApi = {
   delete: (ticketId, attachmentId) => api.delete(`/tickets/${ticketId}/attachments/${attachmentId}`),
 }
 
+// ─── Checklists ──────────────────────────────────
+export const checklistsApi = {
+  add: (ticketId, text) => api.post(`/tickets/${ticketId}/checklists`, { text }),
+  update: (itemId, data) => api.put(`/tickets/checklists/${itemId}`, data),
+  delete: (itemId) => api.delete(`/tickets/checklists/${itemId}`),
+}
+
 export default api

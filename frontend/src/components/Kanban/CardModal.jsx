@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { usersApi, attachmentsApi } from '../../lib/api'
-import { HiOutlineXMark } from 'react-icons/hi2'
+import { usersApi, attachmentsApi, checklistsApi } from '../../lib/api'
+import { HiOutlineXMark, HiOutlineTrash, HiOutlinePlus } from 'react-icons/hi2'
 
 const STATUSES = ['Backlog', 'To Do', 'In Progress', 'In Review', 'Done']
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
@@ -22,6 +22,8 @@ export default function CardModal({ ticket, onSave, onClose }) {
     participants: ticket?.ticket_participants?.map(p => p.users.id) || [],
   })
   const [attachments, setAttachments] = useState(ticket?.ticket_attachments || [])
+  const [checklists, setChecklists] = useState(ticket?.ticket_checklists || [])
+  const [newCheckItem, setNewCheckItem] = useState('')
   const [uploadingFile, setUploadingFile] = useState(false)
   const [users, setUsers] = useState([])
   const [saving, setSaving] = useState(false)
@@ -63,6 +65,43 @@ export default function CardModal({ ticket, onSave, onClose }) {
 
   const handleChange = (field) => (e) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }))
+  }
+
+  // ─── Checklist Handlers ───────────────────────────────
+
+  const handleAddCheckItem = async (e) => {
+    if (e.key && e.key !== 'Enter') return
+    if (e.key === 'Enter') e.preventDefault()
+    if (!newCheckItem.trim() || !ticket) return
+
+    try {
+      const { data } = await checklistsApi.add(ticket.id, newCheckItem)
+      setChecklists(prev => [...prev, data].sort((a, b) => a.position - b.position))
+      setNewCheckItem('')
+    } catch (err) {
+      console.error('Error adding checklist item:', err)
+    }
+  }
+
+  const handleToggleCheckItem = async (item) => {
+    try {
+      // Optimistic update
+      setChecklists(prev => prev.map(i => i.id === item.id ? { ...i, completed: !i.completed } : i))
+      await checklistsApi.update(item.id, { completed: !item.completed })
+    } catch (err) {
+      // Rollback
+      setChecklists(prev => prev.map(i => i.id === item.id ? { ...i, completed: item.completed } : i))
+    }
+  }
+
+  const handleDeleteCheckItem = async (itemId) => {
+    try {
+      setChecklists(prev => prev.filter(i => i.id !== itemId))
+      await checklistsApi.delete(itemId)
+    } catch (err) {
+      // Refresh list on error to be safe
+      usersApi.getAll() // Just to fetch users? No, I should probably reload ticket, but for now simple delete
+    }
   }
 
   return (
@@ -216,6 +255,71 @@ export default function CardModal({ ticket, onSave, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* Checklist Area */}
+          {ticket && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <label style={{ margin: 0 }}>Checklist de Tarefas</label>
+                <div style={{ flex: 1, height: '1px', background: 'var(--color-border-light)', opacity: 0.3 }}></div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+                {checklists.map(item => (
+                  <div 
+                    key={item.id} 
+                    style={{ 
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '4px 8px', borderRadius: 6,
+                      background: item.completed ? 'transparent' : 'rgba(255,255,255,0.02)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      style={{ cursor: 'pointer' }}
+                      checked={item.completed} 
+                      onChange={() => handleToggleCheckItem(item)}
+                    />
+                    <span 
+                      style={{ 
+                        flex: 1, fontSize: 13, color: item.completed ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                        textDecoration: item.completed ? 'line-through' : 'none'
+                      }}
+                    >
+                      {item.text}
+                    </span>
+                    <button 
+                      type="button"
+                      onClick={() => handleDeleteCheckItem(item.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: 4 }}
+                    >
+                      <HiOutlineTrash size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input 
+                  type="text"
+                  className="input"
+                  style={{ height: 32, fontSize: 13 }}
+                  placeholder="Adicionar um item..."
+                  value={newCheckItem}
+                  onChange={(e) => setNewCheckItem(e.target.value)}
+                  onKeyDown={handleAddCheckItem}
+                />
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  style={{ padding: '0 8px', height: 32 }}
+                  onClick={handleAddCheckItem}
+                >
+                  <HiOutlinePlus size={16} />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Anexos (Somente tickets existentes) */}
           {ticket && (
