@@ -77,9 +77,25 @@ export default function CardModal({ ticket, onSave, onClose }) {
             marginBottom: 28,
           }}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>
-            {ticket ? 'Editar Ticket' : 'Novo Ticket'}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+              {ticket ? 'Editar Ticket' : 'Novo Ticket'}
+            </h2>
+            {ticket && (
+              <span style={{
+                background: 'rgba(212,168,83,0.1)',
+                color: 'var(--color-accent-gold)',
+                border: '1px solid rgba(212,168,83,0.3)',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '0.5px'
+              }}>
+                NDMG-{ticket.id.substring(0,8)}
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             style={{

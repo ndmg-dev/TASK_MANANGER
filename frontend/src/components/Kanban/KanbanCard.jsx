@@ -29,7 +29,7 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`kanban-card ${isDragging ? 'dragging' : ''} animate-fade-in`}
+      className={`kanban-card ${isDragging ? 'dragging' : ''} ${ticket.status === 'Done' ? 'card-done' : ''} animate-fade-in`}
     >
       {/* Stalled indicator */}
       {isStalled && (
@@ -38,15 +38,28 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
         </div>
       )}
 
-      {/* Priority badge */}
-      <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', marginBottom: 8 }}>
+      {/* Header: ID + Priority */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: 'var(--color-accent-gold)',
+          background: 'rgba(212,168,83,0.1)',
+          padding: '2px 6px',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid rgba(212,168,83,0.2)',
+          letterSpacing: '0.5px'
+        }}>
+          NDMG-{ticket.id.substring(0,8)}
+        </span>
         <span className={`badge badge-${ticket.prioridade}`}>
           {ticket.prioridade}
         </span>
       </div>
 
       {/* Title */}
-      <h3 style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, marginBottom: 8, paddingRight: isStalled ? 24 : 0 }}>
+      <h3 style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, marginBottom: 8, paddingRight: isStalled ? 24 : 0, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+        {ticket.status === 'Done' && <span style={{ color: 'var(--color-success)', fontSize: 14 }}>✓</span>}
         {ticket.titulo}
       </h3>
 
