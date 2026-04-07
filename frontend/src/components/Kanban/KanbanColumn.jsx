@@ -15,7 +15,7 @@ const columnColors = {
 
 export default function KanbanColumn({ id, title, tickets, onEditCard, onDeleteCard }) {
   const { setNodeRef, isOver } = useDroppable({ id })
-  const isWipViolation = tickets.length > WIP_LIMIT
+  const isWipViolation = (title !== 'Done' && title !== 'Backlog') && tickets.length > WIP_LIMIT
   const color = columnColors[title] || '#6366f1'
 
   return (

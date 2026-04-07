@@ -61,7 +61,8 @@ class TicketService:
             if parts:
                 sb.table("ticket_participants").insert(parts).execute()
 
-        return ticket
+        # Re-fetch full ticket with joins (assignee, participants, etc.)
+        return TicketService.get_by_id(ticket["id"])
 
     @staticmethod
     def update(ticket_id, data):
@@ -94,7 +95,7 @@ class TicketService:
             update_data["position"] = new_position
 
         result = sb.table("tickets").update(update_data).eq("id", ticket_id).execute()
-        return result.data[0] if result.data else None
+        return TicketService.get_by_id(ticket_id) if result.data else None
 
     @staticmethod
     def delete(ticket_id):

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
 import { ticketsApi } from '../lib/api'
+import { supabase } from '../lib/supabaseClient'
 
 const COLUMNS = ['Backlog', 'To Do', 'In Progress', 'In Review', 'Done']
 
@@ -23,6 +23,29 @@ export function useTickets() {
 
   useEffect(() => {
     fetchTickets()
+
+    // ─── Realtime Subscription ──────────────────────────
+    // Subscreve a mudanças na tabela de tickets para todos os usuários
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'tickets'
+        },
+        () => {
+          // Quando algo muda no banco, recarregamos a lista
+          // Isso garante que todos vejam o board atualizado "ao vivo"
+          fetchTickets()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [fetchTickets])
 
   const getTicketsByColumn = useCallback(() => {
