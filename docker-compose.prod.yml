@@ -37,6 +37,8 @@ services:
         VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
         VITE_API_URL: /api
     container_name: ndmg-frontend-prod
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
     restart: unless-stopped
