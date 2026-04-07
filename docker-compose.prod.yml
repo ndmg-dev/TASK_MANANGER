@@ -37,6 +37,10 @@ services:
         VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
         VITE_API_URL: /api
     container_name: ndmg-frontend-prod
+    expose:
+      - "3000"
+    labels:
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     depends_on:
       - backend
     restart: unless-stopped
