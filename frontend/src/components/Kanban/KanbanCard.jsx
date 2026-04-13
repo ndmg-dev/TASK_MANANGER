@@ -26,9 +26,10 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, cursor: 'pointer' }}
       {...attributes}
       {...listeners}
+      onClick={onEdit}
       className={`kanban-card ${isDragging ? 'dragging' : ''} ${ticket.status === 'Done' ? 'card-done' : ''} animate-fade-in`}
     >
       {/* Stalled indicator */}
@@ -244,12 +245,24 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
             </div>
           )}
           {ticket.github_pr.status === 'created' && (
-            <a href={ticket.github_pr.pr_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#f5f0e8', textDecoration: 'none', background: 'var(--color-info)', padding: '4px 8px', borderRadius: 4, fontWeight: 600 }}>
+            <a 
+              href={ticket.github_pr.pr_url} 
+              target="_blank" 
+              rel="noreferrer" 
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#f5f0e8', textDecoration: 'none', background: 'var(--color-info)', padding: '4px 8px', borderRadius: 4, fontWeight: 600 }}
+            >
               🔗 PR #{ticket.github_pr.pr_number} Gerado
             </a>
           )}
           {ticket.github_pr.status === 'exists' && (
-            <a href={ticket.github_pr.pr_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-primary)', textDecoration: 'none', background: 'var(--color-bg-active)', padding: '4px 8px', borderRadius: 4 }}>
+            <a 
+              href={ticket.github_pr.pr_url} 
+              target="_blank" 
+              rel="noreferrer" 
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-primary)', textDecoration: 'none', background: 'var(--color-bg-active)', padding: '4px 8px', borderRadius: 4 }}
+            >
               🔗 PR #{ticket.github_pr.pr_number} (Existente)
             </a>
           )}
