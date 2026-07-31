@@ -1,6 +1,9 @@
 import logging
 from flask import Blueprint, request, jsonify, g
-from app.middleware.auth import require_auth, require_admin
+from datetime import date
+
+from app.middleware.auth import require_auth
+from app.services.department_service import DepartmentService
 from app.services.ticket_service import TicketService
 
 logger = logging.getLogger(__name__)
@@ -8,14 +11,55 @@ logger = logging.getLogger(__name__)
 tickets_bp = Blueprint("tickets", __name__)
 
 
+def _allowed_department_ids():
+    """None = irrestrito (admin). Lista = setores do usuário."""
+    if getattr(g, "is_admin", False):
+        return None
+    return DepartmentService.get_user_department_ids(g.user_id)
+
+
+def _can_reach(ticket):
+    """O usuário pode ver/editar este ticket?"""
+    if getattr(g, "is_admin", False):
+        return True
+    return ticket.get("department_id") in (_allowed_department_ids() or [])
+
+
+def _validate_dates(data):
+    """Valida formato ISO e a ordem início <= término. Retorna msg de erro ou None."""
+    parsed = {}
+    for field in ("data_inicio", "data_fim"):
+        value = data.get(field)
+        if not value:
+            continue
+        try:
+            parsed[field] = date.fromisoformat(value)
+        except (ValueError, TypeError):
+            return f"Campo '{field}' deve estar no formato AAAA-MM-DD"
+
+    if len(parsed) == 2 and parsed["data_fim"] < parsed["data_inicio"]:
+        return "A data de término não pode ser anterior à data de início"
+    return None
+
+
 @tickets_bp.route("/tickets", methods=["GET"])
 @require_auth
 def list_tickets():
-    """List all tickets with optional filters."""
+    """List all tickets with optional filters (escopo: setores do usuário)."""
     status = request.args.get("status")
     assignee_id = request.args.get("assignee_id")
+    department_id = request.args.get("department_id")
 
-    tickets = TicketService.get_all(status=status, assignee_id=assignee_id)
+    allowed = _allowed_department_ids()
+    if department_id and allowed is not None and department_id not in allowed:
+        return jsonify({"error": "Acesso negado a este setor"}), 403
+
+    tickets = TicketService.get_all(
+        status=status,
+        assignee_id=assignee_id,
+        department_id=department_id,
+        allowed_department_ids=allowed,
+    )
     return jsonify(tickets)
 
 
@@ -26,6 +70,8 @@ def get_ticket(ticket_id):
     ticket = TicketService.get_by_id(ticket_id)
     if not ticket:
         return jsonify({"error": "Ticket não encontrado"}), 404
+    if not _can_reach(ticket):
+        return jsonify({"error": "Acesso negado a este ticket"}), 403
     return jsonify(ticket)
 
 
@@ -44,6 +90,16 @@ def create_ticket():
     if data.get("prioridade") and data["prioridade"] not in TicketService.VALID_PRIORITIES:
         return jsonify({"error": f"Prioridade inválida. Use: {TicketService.VALID_PRIORITIES}"}), 400
 
+    date_error = _validate_dates(data)
+    if date_error:
+        return jsonify({"error": date_error}), 400
+
+    department_id = data.get("department_id")
+    if not department_id:
+        return jsonify({"error": "Campo 'department_id' é obrigatório"}), 400
+    if not DepartmentService.user_can_access(g.user_id, department_id, is_admin=g.is_admin):
+        return jsonify({"error": "Você não pertence a este setor"}), 403
+
     ticket = TicketService.create(data, user_id=g.user_id)
     if not ticket:
         return jsonify({"error": "Erro ao criar ticket"}), 500
@@ -61,6 +117,22 @@ def update_ticket(ticket_id):
 
     if data.get("status") and data["status"] not in TicketService.VALID_STATUSES:
         return jsonify({"error": f"Status inválido. Use: {TicketService.VALID_STATUSES}"}), 400
+
+    date_error = _validate_dates(data)
+    if date_error:
+        return jsonify({"error": date_error}), 400
+
+    existing = TicketService.get_by_id(ticket_id)
+    if not existing:
+        return jsonify({"error": "Ticket não encontrado"}), 404
+    if not _can_reach(existing):
+        return jsonify({"error": "Acesso negado a este ticket"}), 403
+
+    # Mover o ticket para outro setor exige pertencer ao setor de destino
+    novo_setor = data.get("department_id")
+    if novo_setor and novo_setor != existing.get("department_id"):
+        if not DepartmentService.user_can_access(g.user_id, novo_setor, is_admin=g.is_admin):
+            return jsonify({"error": "Você não pertence ao setor de destino"}), 403
 
     ticket = TicketService.update(ticket_id, data)
     if not ticket:
@@ -87,7 +159,11 @@ def move_ticket(ticket_id):
 
     # Get previous status for transition detection
     previous_ticket = TicketService.get_by_id(ticket_id)
-    previous_status = previous_ticket.get("status") if previous_ticket else None
+    if not previous_ticket:
+        return jsonify({"error": "Ticket não encontrado"}), 404
+    if not _can_reach(previous_ticket):
+        return jsonify({"error": "Acesso negado a este ticket"}), 403
+    previous_status = previous_ticket.get("status")
 
     # Execute the move
     ticket = TicketService.move(ticket_id, new_status, new_position)
@@ -153,9 +229,16 @@ def _trigger_github_pr_sync(ticket_id):
 
 
 @tickets_bp.route("/tickets/<ticket_id>", methods=["DELETE"])
-@require_admin
+@require_auth
 def delete_ticket(ticket_id):
-    """Delete a ticket (admin only)."""
+    """Delete a ticket (admin global ou gestor do setor)."""
+    ticket = TicketService.get_by_id(ticket_id)
+    if not ticket:
+        return jsonify({"error": "Ticket não encontrado"}), 404
+
+    if not DepartmentService.user_manages(g.user_id, ticket.get("department_id"), is_admin=g.is_admin):
+        return jsonify({"error": "Apenas o gestor do setor ou um admin pode remover tickets"}), 403
+
     TicketService.delete(ticket_id)
     return jsonify({"message": "Ticket removido com sucesso"}), 200
 
@@ -171,11 +254,29 @@ def reorder_tickets():
     if not status or not ticket_ids:
         return jsonify({"error": "status e ticket_ids são obrigatórios"}), 400
 
+    allowed = _allowed_department_ids()
+    if allowed is not None:
+        for tid in ticket_ids:
+            ticket = TicketService.get_by_id(tid)
+            if ticket and ticket.get("department_id") not in allowed:
+                return jsonify({"error": "Acesso negado a este setor"}), 403
+
     TicketService.reorder_column(status, ticket_ids)
     return jsonify({"message": "Ordem atualizada"})
 
 
 # ─── Checklist Routes ──────────────────────────────────────
+
+def _guard_checklist_item(item_id):
+    """403 se o item pertencer a um ticket fora do escopo do usuário."""
+    ticket_id = TicketService.get_checklist_ticket_id(item_id)
+    if not ticket_id:
+        return jsonify({"error": "Item não encontrado"}), 404
+    ticket = TicketService.get_by_id(ticket_id)
+    if not ticket or not _can_reach(ticket):
+        return jsonify({"error": "Acesso negado a este ticket"}), 403
+    return None
+
 
 @tickets_bp.route("/tickets/<ticket_id>/checklists", methods=["POST"])
 @require_auth
@@ -184,6 +285,12 @@ def add_checklist_item(ticket_id):
     data = request.get_json()
     if not data or not data.get("text"):
         return jsonify({"error": "Campo 'text' é obrigatório"}), 400
+
+    ticket = TicketService.get_by_id(ticket_id)
+    if not ticket:
+        return jsonify({"error": "Ticket não encontrado"}), 404
+    if not _can_reach(ticket):
+        return jsonify({"error": "Acesso negado a este ticket"}), 403
 
     item = TicketService.add_checklist_item(ticket_id, data["text"])
     if not item:
@@ -196,6 +303,10 @@ def add_checklist_item(ticket_id):
 @require_auth
 def update_checklist_item(item_id):
     """Update a checklist item (toggle, rename, reorder)."""
+    denied = _guard_checklist_item(item_id)
+    if denied:
+        return denied
+
     data = request.get_json()
     item = TicketService.update_checklist_item(item_id, data)
     if not item:
@@ -208,5 +319,9 @@ def update_checklist_item(item_id):
 @require_auth
 def delete_checklist_item(item_id):
     """Delete a checklist item."""
+    denied = _guard_checklist_item(item_id)
+    if denied:
+        return denied
+
     TicketService.delete_checklist_item(item_id)
     return jsonify({"message": "Item removido"}), 200

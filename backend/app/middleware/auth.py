@@ -86,13 +86,23 @@ def require_auth(f):
 
         # Verify email domain restriction
         email = payload.get("email", "")
-        if not email.endswith("@mendoncagalvao.com.br"):
-            return jsonify({"error": "Acesso restrito ao domínio mendoncagalvao.com.br"}), 403
+        domain = Config.ALLOWED_EMAIL_DOMAIN
+        if not email.endswith(f"@{domain}"):
+            return jsonify({"error": f"Acesso restrito ao domínio {domain}"}), 403
 
         g.user_id = payload.get("sub")
         g.user_email = email
-        g.user_role = payload.get("user_metadata", {}).get("role", "developer")
         g.token = token
+
+        # A tabela public.users é a fonte de verdade do papel (o metadata do
+        # JWT fica defasado quando um admin troca o nível de acesso).
+        from app.extensions import get_supabase
+        sb = get_supabase()
+        profile = sb.table("users").select("role, full_name").eq("id", g.user_id).execute()
+        row = profile.data[0] if profile.data else {}
+        g.user_role = row.get("role", "developer")
+        g.user_name = row.get("full_name") or email
+        g.is_admin = g.user_role == "admin"
 
         return f(*args, **kwargs)
     return decorated
@@ -103,10 +113,25 @@ def require_admin(f):
     @functools.wraps(f)
     @require_auth
     def decorated(*args, **kwargs):
-        from app.extensions import get_supabase
-        sb = get_supabase()
-        user = sb.table("users").select("role").eq("id", g.user_id).single().execute()
-        if not user.data or user.data.get("role") != "admin":
+        if not getattr(g, "is_admin", False):
             return jsonify({"error": "Acesso restrito a administradores"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def require_department_manager(f):
+    """
+    Permite admins globais e gestores do setor alvo.
+
+    O setor é lido de <department_id> na rota ou do corpo da requisição.
+    """
+    @functools.wraps(f)
+    @require_auth
+    def decorated(*args, **kwargs):
+        from app.services.department_service import DepartmentService
+
+        department_id = kwargs.get("department_id") or (request.get_json(silent=True) or {}).get("department_id")
+        if not DepartmentService.user_manages(g.user_id, department_id, is_admin=g.is_admin):
+            return jsonify({"error": "Acesso restrito ao gestor do setor"}), 403
         return f(*args, **kwargs)
     return decorated

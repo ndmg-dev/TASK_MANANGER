@@ -1,12 +1,31 @@
 import { useState, useEffect } from 'react'
 import { adminApi } from '../lib/api'
-import { HiOutlineUserGroup, HiOutlineShieldCheck } from 'react-icons/hi2'
+import DepartmentsPanel from '../components/Admin/DepartmentsPanel'
+import AutomationPanel from '../components/Admin/AutomationPanel'
+import {
+  HiOutlineUserGroup,
+  HiOutlineShieldCheck,
+  HiOutlineBuildingOffice2,
+  HiOutlineEnvelope,
+} from 'react-icons/hi2'
+
+const TABS = [
+  { id: 'users', label: 'Usuários', icon: HiOutlineUserGroup },
+  { id: 'departments', label: 'Setores', icon: HiOutlineBuildingOffice2 },
+  { id: 'automation', label: 'Automação', icon: HiOutlineEnvelope },
+]
 
 export default function AdminPage() {
+  const [tab, setTab] = useState('users')
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [toast, setToast] = useState(null)
+
+  const showToast = (t) => {
+    setToast(t)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   const fetchUsers = async () => {
     try {
@@ -44,8 +63,36 @@ export default function AdminPage() {
           Admin Panel
         </h1>
         <p style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>
-          Gerenciamento de nível de acesso da equipe de TI e Convidados.
+          Acessos, setores da empresa e automação de avisos de prazo.
         </p>
+      </div>
+
+      {/* Abas */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--color-border)' }}>
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: `2px solid ${tab === id ? 'var(--color-accent-gold)' : 'transparent'}`,
+              color: tab === id ? 'var(--color-accent-gold)' : 'var(--color-text-muted)',
+              fontSize: 13,
+              fontWeight: tab === id ? 700 : 500,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              marginBottom: -1,
+            }}
+          >
+            <Icon size={16} />
+            {label}
+          </button>
+        ))}
       </div>
 
       {toast && (
@@ -62,7 +109,10 @@ export default function AdminPage() {
         </div>
       )}
 
-      {loading && !users.length ? (
+      {tab === 'departments' && <DepartmentsPanel onToast={showToast} />}
+      {tab === 'automation' && <AutomationPanel onToast={showToast} />}
+
+      {tab === 'users' && (loading && !users.length ? (
         <div className="skeleton" style={{ height: 400, width: '100%' }} />
       ) : error ? (
         <div style={{ color: 'var(--color-danger)' }}>{error}</div>
@@ -131,7 +181,7 @@ export default function AdminPage() {
             </div>
           )}
         </div>
-      )}
+      ))}
     </div>
   )
 }

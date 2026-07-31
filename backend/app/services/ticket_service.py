@@ -6,18 +6,37 @@ class TicketService:
 
     VALID_STATUSES = ["Backlog", "To Do", "In Progress", "In Review", "Done"]
     VALID_PRIORITIES = ["low", "medium", "high", "critical"]
+    OPEN_STATUSES = ["Backlog", "To Do", "In Progress", "In Review"]
+
+    SELECT_RELATIONS = (
+        "*, assignee:users!assignee_id(id, full_name, avatar_url, email), "
+        "creator:users!created_by(id, full_name), "
+        "department:departments!department_id(id, nome, slug, cor), "
+        "ticket_participants(users(id, full_name, avatar_url, email)), "
+        "ticket_attachments(*), ticket_checklists(*)"
+    )
 
     @staticmethod
-    def get_all(status=None, assignee_id=None):
+    def get_all(status=None, assignee_id=None, department_id=None, allowed_department_ids=None):
+        """
+        Lista tickets.
+
+        `allowed_department_ids=None` significa acesso irrestrito (admin).
+        Uma lista vazia significa "nenhum setor" e retorna [].
+        """
         sb = get_supabase()
-        query = sb.table("tickets").select(
-            "*, assignee:users!assignee_id(id, full_name, avatar_url), creator:users!created_by(id, full_name), ticket_participants(users(id, full_name, avatar_url, email)), ticket_attachments(*), ticket_checklists(*)"
-        ).order("position")
+        query = sb.table("tickets").select(TicketService.SELECT_RELATIONS).order("position")
 
         if status:
             query = query.eq("status", status)
         if assignee_id:
             query = query.eq("assignee_id", assignee_id)
+        if department_id:
+            query = query.eq("department_id", department_id)
+        elif allowed_department_ids is not None:
+            if not allowed_department_ids:
+                return []
+            query = query.in_("department_id", allowed_department_ids)
 
         result = query.execute()
         return result.data
@@ -26,9 +45,9 @@ class TicketService:
     def get_by_id(ticket_id):
         sb = get_supabase()
         result = sb.table("tickets").select(
-            "*, assignee:users!assignee_id(id, full_name, avatar_url, email), creator:users!created_by(id, full_name), ticket_participants(users(id, full_name, avatar_url, email)), ticket_attachments(*), ticket_checklists(*)"
-        ).eq("id", ticket_id).single().execute()
-        return result.data
+            TicketService.SELECT_RELATIONS
+        ).eq("id", ticket_id).execute()
+        return result.data[0] if result.data else None
 
     @staticmethod
     def create(data, user_id):
@@ -49,6 +68,9 @@ class TicketService:
             "status": data.get("status", "Backlog"),
             "prioridade": data.get("prioridade", "medium"),
             "assignee_id": data.get("assignee_id"),
+            "department_id": data.get("department_id"),
+            "data_inicio": data.get("data_inicio") or None,
+            "data_fim": data.get("data_fim") or None,
             "created_by": user_id,
             "position": next_pos,
         }
@@ -69,10 +91,17 @@ class TicketService:
         sb = get_supabase()
 
         update_data = {}
-        allowed_fields = ["titulo", "descricao", "status", "prioridade", "assignee_id", "position"]
+        allowed_fields = [
+            "titulo", "descricao", "status", "prioridade", "assignee_id",
+            "position", "department_id", "data_inicio", "data_fim",
+        ]
         for field in allowed_fields:
             if field in data:
-                update_data[field] = data[field]
+                value = data[field]
+                # Inputs de data vazios chegam como "" e violariam o tipo DATE
+                if field in ("data_inicio", "data_fim") and not value:
+                    value = None
+                update_data[field] = value
 
         if update_data:
             sb.table("tickets").update(update_data).eq("id", ticket_id).execute()
@@ -111,6 +140,23 @@ class TicketService:
             sb.table("tickets").update({"position": idx}).eq("id", tid).execute()
         return True
 
+    @staticmethod
+    def get_due_between(date_from, date_to):
+        """
+        Tickets em aberto com data de término dentro do intervalo (inclusive).
+
+        Usado pela automação de avisos de prazo.
+        """
+        sb = get_supabase()
+        result = sb.table("tickets").select(
+            TicketService.SELECT_RELATIONS
+        ).not_.is_("data_fim", "null").gte(
+            "data_fim", date_from.isoformat()
+        ).lte(
+            "data_fim", date_to.isoformat()
+        ).in_("status", TicketService.OPEN_STATUSES).execute()
+        return result.data or []
+
     # ─── Checklist Management ───────────────────────────────
 
     @staticmethod
@@ -128,6 +174,12 @@ class TicketService:
         }
         result = sb.table("ticket_checklists").insert(item).execute()
         return result.data[0] if result.data else None
+
+    @staticmethod
+    def get_checklist_ticket_id(item_id):
+        sb = get_supabase()
+        result = sb.table("ticket_checklists").select("ticket_id").eq("id", item_id).execute()
+        return result.data[0]["ticket_id"] if result.data else None
 
     @staticmethod
     def update_checklist_item(item_id, data):

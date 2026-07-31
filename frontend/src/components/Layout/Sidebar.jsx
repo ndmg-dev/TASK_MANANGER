@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDepartments } from '../../contexts/DepartmentContext'
 import {
   HiOutlineViewColumns,
   HiOutlineChartBarSquare,
   HiOutlineArrowLeftOnRectangle,
   HiOutlineShieldCheck,
+  HiOutlineBuildingOffice2,
 } from 'react-icons/hi2'
 
 const navItems = [
@@ -14,6 +16,7 @@ const navItems = [
 
 export default function Sidebar() {
   const { user, session, signOut } = useAuth()
+  const { departments, currentId, selectDepartment, loading: loadingDepts } = useDepartments()
 
   return (
     <aside
@@ -68,6 +71,58 @@ export default function Sidebar() {
         >
           Task Manager
         </span>
+      </div>
+
+      {/* Seletor de setor */}
+      <div style={{ padding: '0 20px', marginBottom: 24 }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: 1.5,
+            textTransform: 'uppercase',
+            color: 'var(--color-text-muted)',
+            marginBottom: 8,
+          }}
+          htmlFor="department-switcher"
+        >
+          <HiOutlineBuildingOffice2 size={13} />
+          Setor
+        </label>
+
+        {loadingDepts ? (
+          <div className="skeleton" style={{ height: 36, borderRadius: 8 }} />
+        ) : departments.length === 0 ? (
+          <div
+            style={{
+              fontSize: 11,
+              color: 'var(--color-warning)',
+              background: 'var(--color-warning-soft)',
+              padding: '8px 10px',
+              borderRadius: 8,
+              lineHeight: 1.4,
+            }}
+          >
+            Você ainda não faz parte de nenhum setor. Peça a um administrador para vincular seu acesso.
+          </div>
+        ) : (
+          <select
+            id="department-switcher"
+            className="input"
+            value={currentId || ''}
+            onChange={(e) => selectDepartment(e.target.value)}
+            style={{ height: 38, fontSize: 13, fontWeight: 600 }}
+          >
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nome}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Navigation */}

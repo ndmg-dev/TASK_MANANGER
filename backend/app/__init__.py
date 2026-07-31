@@ -11,7 +11,7 @@ def create_app():
     # CORS — allow frontend origin
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000", "http://localhost:5173"],
+            "origins": Config.CORS_ORIGINS,
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True,
@@ -29,6 +29,8 @@ def create_app():
     from app.routes.github import github_bp
     from app.routes.admin import admin_bp
     from app.routes.attachments import attachments_bp
+    from app.routes.departments import departments_bp
+    from app.routes.notifications import notifications_bp
 
     app.register_blueprint(tickets_bp, url_prefix="/api")
     app.register_blueprint(users_bp, url_prefix="/api")
@@ -37,6 +39,12 @@ def create_app():
     app.register_blueprint(github_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api")
     app.register_blueprint(attachments_bp, url_prefix="/api")
+    app.register_blueprint(departments_bp, url_prefix="/api")
+    app.register_blueprint(notifications_bp, url_prefix="/api")
+
+    # Automação de avisos de prazo (varredura diária por e-mail)
+    from app.scheduler import start_scheduler
+    start_scheduler()
 
     @app.route("/api/health")
     def health():

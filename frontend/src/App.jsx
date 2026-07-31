@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { DepartmentProvider } from './contexts/DepartmentContext'
 import Layout from './components/Layout/Layout'
 import LoginPage from './pages/LoginPage'
 import KanbanBoard from './components/Kanban/KanbanBoard'
@@ -61,33 +62,35 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* Public */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
+        <DepartmentProvider>
+          <Routes>
+            {/* Public */}
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              }
+            />
 
-          {/* Private */}
-          <Route
-            element={
-              <PrivateRoute>
-                <Layout />
-              </PrivateRoute>
-            }
-          >
-            <Route index element={<KanbanBoard />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="admin" element={<AdminPage />} />
-          </Route>
+            {/* Private */}
+            <Route
+              element={
+                <PrivateRoute>
+                  <Layout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<KanbanBoard />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="admin" element={<AdminPage />} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </DepartmentProvider>
       </AuthProvider>
     </BrowserRouter>
   )

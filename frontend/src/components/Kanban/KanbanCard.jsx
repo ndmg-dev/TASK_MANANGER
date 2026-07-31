@@ -1,6 +1,40 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { HiOutlineClock, HiOutlinePencilSquare, HiOutlineTrash } from 'react-icons/hi2'
+import { HiOutlineClock, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineCalendarDays } from 'react-icons/hi2'
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+
+/** Status do prazo do ticket a partir de data_fim (nulo quando não há prazo). */
+function getDueInfo(ticket) {
+  if (!ticket.data_fim) return null
+
+  // Compara em data local pura para não escorregar de dia por fuso
+  const [ano, mes, dia] = ticket.data_fim.split('-').map(Number)
+  const prazo = new Date(ano, mes - 1, dia)
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+
+  const dias = Math.round((prazo - hoje) / MS_PER_DAY)
+  const label = prazo.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+
+  if (ticket.status === 'Done') {
+    return { texto: `Prazo ${label}`, cor: 'var(--color-text-muted)', fundo: 'var(--color-bg-hover)' }
+  }
+  if (dias < 0) {
+    return {
+      texto: `Atrasado ${Math.abs(dias)}d — ${label}`,
+      cor: 'var(--color-danger)',
+      fundo: 'var(--color-danger-soft)',
+    }
+  }
+  if (dias === 0) {
+    return { texto: `Vence hoje — ${label}`, cor: 'var(--color-warning)', fundo: 'var(--color-warning-soft)' }
+  }
+  if (dias <= 3) {
+    return { texto: `Vence em ${dias}d — ${label}`, cor: 'var(--color-warning)', fundo: 'var(--color-warning-soft)' }
+  }
+  return { texto: `Prazo ${label}`, cor: 'var(--color-text-secondary)', fundo: 'var(--color-bg-hover)' }
+}
 
 export default function KanbanCard({ ticket, onEdit, onDelete }) {
   const {
@@ -22,6 +56,7 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
     ? (Date.now() - new Date(ticket.updated_at).getTime()) / (1000 * 60 * 60)
     : 0
   const isStalled = hoursStalled > 48 && ticket.status !== 'Done'
+  const dueInfo = getDueInfo(ticket)
 
   return (
     <div
@@ -80,6 +115,32 @@ export default function KanbanCard({ ticket, onEdit, onDelete }) {
         >
           {ticket.descricao}
         </p>
+      )}
+
+      {/* Prazo */}
+      {dueInfo && (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '3px 8px',
+            borderRadius: 999,
+            marginBottom: 10,
+            color: dueInfo.cor,
+            background: dueInfo.fundo,
+          }}
+          title={
+            ticket.data_inicio
+              ? `Início: ${ticket.data_inicio.split('-').reverse().join('/')}`
+              : 'Sem data de início'
+          }
+        >
+          <HiOutlineCalendarDays size={12} />
+          {dueInfo.texto}
+        </div>
       )}
 
       {/* Footer */}

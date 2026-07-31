@@ -12,13 +12,15 @@ const priorityLabels = {
   critical: 'Crítica',
 }
 
-export default function CardModal({ ticket, onSave, onClose }) {
+export default function CardModal({ ticket, departmentId, onSave, onClose }) {
   const [formData, setFormData] = useState({
     titulo: ticket?.titulo || '',
     descricao: ticket?.descricao || '',
     status: ticket?.status || 'Backlog',
     prioridade: ticket?.prioridade || 'medium',
     assignee_id: ticket?.assignee_id || '',
+    data_inicio: ticket?.data_inicio || '',
+    data_fim: ticket?.data_fim || '',
     participants: ticket?.ticket_participants?.map(p => p.users.id) || [],
   })
   const [attachments, setAttachments] = useState(ticket?.ticket_attachments || [])
@@ -27,20 +29,38 @@ export default function CardModal({ ticket, onSave, onClose }) {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [users, setUsers] = useState([])
   const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState(null)
+
+  // Só oferece como responsável quem pertence ao setor do board
+  const scopeId = ticket?.department_id || departmentId
 
   useEffect(() => {
-    usersApi.getAll().then(({ data }) => setUsers(data)).catch(() => {})
-  }, [])
+    usersApi
+      .getAll(scopeId ? { department_id: scopeId } : undefined)
+      .then(({ data }) => setUsers(data))
+      .catch(() => {})
+  }, [scopeId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.titulo.trim()) return
+
+    if (formData.data_inicio && formData.data_fim && formData.data_fim < formData.data_inicio) {
+      setFormError('A data de término não pode ser anterior à data de início.')
+      return
+    }
+
     setSaving(true)
+    setFormError(null)
     try {
       await onSave({
         ...formData,
         assignee_id: formData.assignee_id || null,
+        data_inicio: formData.data_inicio || null,
+        data_fim: formData.data_fim || null,
       })
+    } catch (err) {
+      setFormError(err?.response?.data?.error || 'Falha ao salvar o ticket.')
     } finally {
       setSaving(false)
     }
@@ -209,6 +229,34 @@ export default function CardModal({ ticket, onSave, onClose }) {
             </div>
           </div>
 
+          {/* Datas de início e término */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div>
+              <label htmlFor="field-data-inicio">Data de Início</label>
+              <input
+                id="field-data-inicio"
+                className="input"
+                type="date"
+                value={formData.data_inicio || ''}
+                onChange={handleChange('data_inicio')}
+              />
+            </div>
+            <div>
+              <label htmlFor="field-data-fim">Data de Término (Prazo)</label>
+              <input
+                id="field-data-fim"
+                className="input"
+                type="date"
+                min={formData.data_inicio || undefined}
+                value={formData.data_fim || ''}
+                onChange={handleChange('data_fim')}
+              />
+              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                O responsável e os participantes recebem aviso por e-mail quando o prazo se aproxima.
+              </p>
+            </div>
+          </div>
+
             {/* Assignee aprimorado */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <div>
@@ -345,6 +393,21 @@ export default function CardModal({ ticket, onSave, onClose }) {
           {!ticket && (
             <div style={{ marginBottom: 28, fontSize: 11, color: 'var(--color-text-muted)' }}>
               * Crie o ticket primeiro para poder anexar imagens.
+            </div>
+          )}
+
+          {formError && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '10px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+                background: 'var(--color-danger-soft)',
+                color: 'var(--color-danger)',
+              }}
+            >
+              {formError}
             </div>
           )}
 

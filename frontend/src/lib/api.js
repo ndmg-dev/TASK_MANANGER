@@ -32,16 +32,34 @@ export const ticketsApi = {
 
 // ─── Users ──────────────────────────────────────
 export const usersApi = {
-  getAll: () => api.get('/users'),
+  getAll: (params) => api.get('/users', { params }),
   getMe: () => api.get('/users/me'),
+}
+
+// ─── Departments (Setores) ──────────────────────
+export const departmentsApi = {
+  getMine: () => api.get('/departments'),
+  getAll: () => api.get('/departments/all'),
+  create: (data) => api.post('/departments', data),
+  update: (id, data) => api.put(`/departments/${id}`, data),
+  delete: (id) => api.delete(`/departments/${id}`),
+  addMember: (id, userId, papel = 'member') =>
+    api.post(`/departments/${id}/members`, { user_id: userId, papel }),
+  removeMember: (id, userId) => api.delete(`/departments/${id}/members/${userId}`),
+}
+
+// ─── Notificações (avisos de prazo) ─────────────
+export const notificationsApi = {
+  getStatus: () => api.get('/notifications/status'),
+  run: (dryRun = false) => api.post('/notifications/run', { dry_run: dryRun }),
 }
 
 // ─── Metrics ────────────────────────────────────
 export const metricsApi = {
-  getThroughput: () => api.get('/metrics/throughput'),
-  getCycleTime: () => api.get('/metrics/cycle-time'),
-  getLeadTime: () => api.get('/metrics/lead-time'),
-  getBottlenecks: () => api.get('/metrics/bottlenecks'),
+  getThroughput: (params) => api.get('/metrics/throughput', { params }),
+  getCycleTime: (params) => api.get('/metrics/cycle-time', { params }),
+  getLeadTime: (params) => api.get('/metrics/lead-time', { params }),
+  getBottlenecks: (params) => api.get('/metrics/bottlenecks', { params }),
 }
 
 // ─── AI ─────────────────────────────────────────

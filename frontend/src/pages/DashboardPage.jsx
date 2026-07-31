@@ -1,4 +1,5 @@
 import { useMetrics } from '../hooks/useMetrics'
+import { useDepartments } from '../contexts/DepartmentContext'
 import ThroughputChart from '../components/Dashboard/ThroughputChart'
 import CycleTimeChart from '../components/Dashboard/CycleTimeChart'
 import LeadTimeCard from '../components/Dashboard/LeadTimeCard'
@@ -7,7 +8,8 @@ import WeeklyAIReport from '../components/Dashboard/WeeklyAIReport'
 import { HiOutlineArrowPath } from 'react-icons/hi2'
 
 export default function DashboardPage() {
-  const { throughput, cycleTime, leadTime, bottlenecks, loading, refresh } = useMetrics()
+  const { current: department, currentId } = useDepartments()
+  const { throughput, cycleTime, leadTime, bottlenecks, loading, refresh } = useMetrics(currentId)
 
   if (loading) {
     return (
@@ -44,7 +46,9 @@ export default function DashboardPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>Dashboard Gerencial</h1>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>
-            Métricas de produtividade e performance da equipe
+            {department
+              ? `Métricas de produtividade do setor ${department.nome}`
+              : 'Métricas de produtividade e performance da equipe'}
           </p>
         </div>
         <button className="btn-secondary" onClick={refresh} id="btn-refresh-dashboard">

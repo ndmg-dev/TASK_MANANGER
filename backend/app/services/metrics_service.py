@@ -6,15 +6,17 @@ class MetricsService:
     """Service for computing Kanban metrics from event log."""
 
     @staticmethod
-    def get_throughput(weeks=12):
-        """Tickets moved to Done per week for the last N weeks."""
+    def get_throughput(weeks=12, department_id=None):
+        """Tickets moved to Done per week for the last N weeks (escopo: setor)."""
         sb = get_supabase()
         now = datetime.now(timezone.utc)
         start_date = now - timedelta(weeks=weeks)
 
         # Get current Done tickets to ensure we only count tickets that are ACTUALLY Done
-        current_done_req = sb.table("tickets").select("id").eq("status", "Done").execute()
-        current_done_ids = {t["id"] for t in (current_done_req.data or [])}
+        current_done_req = sb.table("tickets").select("id").eq("status", "Done")
+        if department_id:
+            current_done_req = current_done_req.eq("department_id", department_id)
+        current_done_ids = {t["id"] for t in (current_done_req.execute().data or [])}
 
         if not current_done_ids:
             # Se não houver tickets em 'Done', reflete 0.
@@ -67,12 +69,14 @@ class MetricsService:
         return result_data
 
     @staticmethod
-    def get_cycle_time():
-        """Average time from 'In Progress' to 'Done' in hours."""
+    def get_cycle_time(department_id=None):
+        """Average time from 'In Progress' to 'Done' in hours (escopo: setor)."""
         sb = get_supabase()
 
-        current_done_req = sb.table("tickets").select("id").eq("status", "Done").execute()
-        current_done_ids = {t["id"] for t in (current_done_req.data or [])}
+        current_done_req = sb.table("tickets").select("id").eq("status", "Done")
+        if department_id:
+            current_done_req = current_done_req.eq("department_id", department_id)
+        current_done_ids = {t["id"] for t in (current_done_req.execute().data or [])}
 
         if not current_done_ids:
             return {"average_hours": 0, "average_days": 0, "total_tickets": 0, "details": []}
@@ -123,12 +127,14 @@ class MetricsService:
         }
 
     @staticmethod
-    def get_lead_time():
-        """Average time from ticket creation (Backlog) to Done in hours."""
+    def get_lead_time(department_id=None):
+        """Average time from ticket creation (Backlog) to Done in hours (escopo: setor)."""
         sb = get_supabase()
 
-        current_done_req = sb.table("tickets").select("id").eq("status", "Done").execute()
-        current_done_ids = {t["id"] for t in (current_done_req.data or [])}
+        current_done_req = sb.table("tickets").select("id").eq("status", "Done")
+        if department_id:
+            current_done_req = current_done_req.eq("department_id", department_id)
+        current_done_ids = {t["id"] for t in (current_done_req.execute().data or [])}
 
         if not current_done_ids:
              return {"average_hours": 0, "average_days": 0, "total_tickets": 0}
@@ -177,17 +183,19 @@ class MetricsService:
         }
 
     @staticmethod
-    def get_bottlenecks():
-        """Identify bottlenecks: columns with >5 tickets and tickets stalled >48h."""
+    def get_bottlenecks(department_id=None):
+        """Identify bottlenecks: columns with >5 tickets and tickets stalled >48h (escopo: setor)."""
         sb = get_supabase()
         now = datetime.now(timezone.utc)
 
         # Current ticket counts per column (exclude Done)
         tickets = sb.table("tickets").select(
             "id, titulo, status, updated_at, assignee:users!assignee_id(full_name)"
-        ).neq("status", "Done").execute()
+        ).neq("status", "Done")
+        if department_id:
+            tickets = tickets.eq("department_id", department_id)
 
-        all_tickets = tickets.data or []
+        all_tickets = tickets.execute().data or []
 
         # Count per column
         column_counts = {}

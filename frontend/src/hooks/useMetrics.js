@@ -1,21 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { metricsApi } from '../lib/api'
 
-export function useMetrics() {
+export function useMetrics(departmentId) {
   const [throughput, setThroughput] = useState([])
   const [cycleTime, setCycleTime] = useState(null)
   const [leadTime, setLeadTime] = useState(null)
   const [bottlenecks, setBottlenecks] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
+    const params = departmentId ? { department_id: departmentId } : undefined
     try {
       setLoading(true)
       const [tp, ct, lt, bn] = await Promise.all([
-        metricsApi.getThroughput(),
-        metricsApi.getCycleTime(),
-        metricsApi.getLeadTime(),
-        metricsApi.getBottlenecks(),
+        metricsApi.getThroughput(params),
+        metricsApi.getCycleTime(params),
+        metricsApi.getLeadTime(params),
+        metricsApi.getBottlenecks(params),
       ])
       setThroughput(tp.data)
       setCycleTime(ct.data)
@@ -26,11 +27,11 @@ export function useMetrics() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [departmentId])
 
   useEffect(() => {
     fetchAll()
-  }, [])
+  }, [fetchAll])
 
   return {
     throughput,
