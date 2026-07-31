@@ -19,7 +19,7 @@ Relational PostgreSQL database managing complex many-to-many associations (parti
 
 - Company-wide Departments: Every sector (IT, Finance, HR, ...) gets its own Kanban board. Users switch between the boards they belong to; global admins reach everything. Tickets, checklists, attachments, metrics and realtime streams are all scoped to the active department, enforced both by Postgres RLS and by the Flask service layer.
 - Scheduling Fields: Tickets carry `data_inicio` and `data_fim`, surfaced as a colored deadline badge on each card (upcoming, due today, overdue).
-- Deadline Email Automation: A daily APScheduler job (08:00 America/Sao_Paulo by default) emails the assignee and participants of every open ticket approaching its due date. Thresholds are configurable via `NOTIFY_DAYS_BEFORE`; delivery goes out over Google Workspace SMTP. Duplicate sends are impossible — a unique constraint on `ticket_notifications_log` claims each notification before the email leaves.
+- Deadline Email Automation: A daily APScheduler job (08:00 America/Sao_Paulo by default) emails the assignee and participants of every open ticket approaching its due date. Thresholds are configurable via `NOTIFY_DAYS_BEFORE`; delivery goes out over the Brevo transactional API — a single `BREVO_API_KEY` is all it takes. Duplicate sends are impossible — a unique constraint on `ticket_notifications_log` claims each notification before the email leaves.
 - Advanced Kanban Board: Drag-and-drop mechanics with real-time status synchronization.
 - Multi-Participant Attribution: Hierarchical role distribution directly within tickets.
 - File Attachments: Secure native image and document uploads coupled with real-time rendering.
@@ -64,7 +64,7 @@ Migration 04 expands the product to the whole company: it creates the `departmen
 4. Departments and Email Automation
 After migration 04, an admin opens Admin Panel → Setores to create the company sectors and link each collaborator. Users with no department see an explanatory empty state instead of a board.
 
-Admin Panel → Automação shows whether SMTP and the scheduler are live, and offers a dry run that lists exactly which emails would go out without sending anything. For Google Workspace, generate an App Password for the sending account and fill `SMTP_USER` / `SMTP_PASSWORD`.
+Admin Panel → Automação shows whether Brevo and the scheduler are live, and offers a dry run that lists exactly which emails would go out without sending anything. Grab an API key from Brevo > SMTP & API > API Keys and set `BREVO_API_KEY`. The sender defaults to `notificacoes@<ALLOWED_EMAIL_DOMAIN>` and must be validated in the Brevo dashboard; override it with `BREVO_SENDER_EMAIL`.
 
 If you prefer an external scheduler, set `SCHEDULER_ENABLED=false`, define `AUTOMATION_TOKEN`, and have your cron `POST /api/notifications/cron` daily with the `X-Automation-Token` header.
 

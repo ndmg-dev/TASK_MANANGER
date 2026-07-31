@@ -24,8 +24,8 @@ def notifications_status():
         "timezone": Config.TIMEZONE,
         "dias_de_antecedencia": Config.NOTIFY_DAYS_BEFORE,
         "avisa_atrasados": Config.NOTIFY_OVERDUE,
-        "smtp_configurado": EmailService.is_configured(),
-        "remetente": Config.SMTP_FROM_EMAIL,
+        "email_configurado": EmailService.is_configured(),
+        "remetente": Config.BREVO_SENDER_EMAIL,
     })
 
 

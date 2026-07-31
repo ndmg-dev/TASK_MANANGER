@@ -216,7 +216,9 @@ class NotificationService:
                 if not log_id:
                     continue  # já avisado
 
-                if EmailService.send(recipient["email"], subject, html, text):
+                if EmailService.send(
+                    recipient["email"], subject, html, text, to_name=recipient["nome"]
+                ):
                     enviados += 1
                     avisos.append({
                         "ticket": ticket["titulo"], "para": recipient["email"],

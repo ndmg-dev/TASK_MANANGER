@@ -42,7 +42,7 @@ export default function AutomationPanel({ onToast }) {
   const linhas = [
     ['Notificações', status.notificacoes_ativas ? 'Ativas' : 'Desativadas', status.notificacoes_ativas],
     ['Agendador', status.scheduler_ativo ? `Diário às ${status.horario} (${status.timezone})` : 'Desativado', status.scheduler_ativo],
-    ['SMTP', status.smtp_configurado ? `Configurado (${status.remetente})` : 'Não configurado', status.smtp_configurado],
+    ['Brevo', status.email_configurado ? `Conectado — envia como ${status.remetente}` : 'Chave de API ausente', status.email_configurado],
     ['Antecedência', `${status.dias_de_antecedencia?.join(', ')} dia(s) antes do prazo`, true],
     ['Atrasados', status.avisa_atrasados ? 'Avisa quando o prazo estoura' : 'Não avisa', status.avisa_atrasados],
   ]
@@ -68,7 +68,7 @@ export default function AutomationPanel({ onToast }) {
           </tbody>
         </table>
 
-        {!status.smtp_configurado && (
+        {!status.email_configurado && (
           <div
             style={{
               marginTop: 16,
@@ -79,7 +79,7 @@ export default function AutomationPanel({ onToast }) {
               color: 'var(--color-warning)',
             }}
           >
-            Defina SMTP_USER e SMTP_PASSWORD no ambiente do backend para habilitar o envio.
+            Defina BREVO_API_KEY no ambiente do backend para habilitar o envio.
           </div>
         )}
 
@@ -87,7 +87,7 @@ export default function AutomationPanel({ onToast }) {
           <button className="btn-secondary" onClick={() => executar(true)} disabled={running}>
             Simular (não envia)
           </button>
-          <button className="btn-primary" onClick={() => executar(false)} disabled={running || !status.smtp_configurado}>
+          <button className="btn-primary" onClick={() => executar(false)} disabled={running || !status.email_configurado}>
             <HiOutlinePlayCircle size={16} />
             {running ? 'Executando...' : 'Executar agora'}
           </button>

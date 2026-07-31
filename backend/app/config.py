@@ -59,14 +59,13 @@ class Config:
         "CORS_ORIGINS", ["http://localhost:3000", "http://localhost:5173"]
     )
 
-    # ─── SMTP (avisos de prazo) ─────────────────────────
-    SMTP_HOST = env_str("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT = env_int("SMTP_PORT", 587)
-    SMTP_USER = env_str("SMTP_USER")
-    SMTP_PASSWORD = env_str("SMTP_PASSWORD")
-    SMTP_USE_TLS = env_bool("SMTP_USE_TLS", True)
-    SMTP_FROM_EMAIL = env_str("SMTP_FROM_EMAIL") or SMTP_USER
-    SMTP_FROM_NAME = env_str("SMTP_FROM_NAME", "NDMG Task Manager")
+    # ─── Brevo (avisos de prazo) ────────────────────────
+    # Única variável obrigatória: a chave de API (Brevo > SMTP & API > API Keys).
+    BREVO_API_KEY = env_str("BREVO_API_KEY")
+    BREVO_API_URL = env_str("BREVO_API_URL", "https://api.brevo.com/v3/smtp/email")
+    # Remetente: precisa ser um sender validado no painel do Brevo
+    BREVO_SENDER_EMAIL = env_str("BREVO_SENDER_EMAIL", f"notificacoes@{ALLOWED_EMAIL_DOMAIN}")
+    BREVO_SENDER_NAME = env_str("BREVO_SENDER_NAME", "NDMG Task Manager")
 
     # ─── Automação de notificações ──────────────────────
     NOTIFICATIONS_ENABLED = env_bool("NOTIFICATIONS_ENABLED", True)
